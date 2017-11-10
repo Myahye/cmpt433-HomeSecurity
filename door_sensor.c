@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <time.h>
 
+#include "door_sensor.h"
+
 #define _250MS_IN_NS 250000000L
 #define BUFFER_SIZE 256
 #define GPIO_EXPORT "/sys/class/gpio/export"
@@ -17,19 +19,7 @@ static int run = 0;
 static pthread_t door_id;
 
 void *doorReader();
-void Door_init();
-void Door_unInit();
 void getVal(int* value);
-
-// main here for testing
-int main()
-{
-  Door_init();
-
-  sleep(8);
-
-  Door_unInit();
-}
 
 void Door_init()
 {
