@@ -29,7 +29,7 @@ void Keypad_init()
   for (int i = 0; i < NUM_GPIO; ++i) {
     file = fopen((GPIO_BASE_DIR "export"), "w");
     if (file == NULL)
-      perror("Couldn't open GPIO export file!");
+      printf("Couldn't open GPIO export file!");
     fprintf(file, "%s", GPIO[i]);
     fclose(file);
   }
@@ -42,7 +42,7 @@ void Keypad_init()
     
     file = fopen(buffer, "w");
     if (file == NULL)
-      perror("Couldn't export a GPIO pin!");
+      printf("Couldn't set GPIO pin %s as input!", GPIO[i]);
     fprintf(file, "%s", "in");
     fclose(file);
   }
@@ -62,7 +62,7 @@ void Keypad_unInit()
   for (int i = 0; i < NUM_GPIO; ++i) {
     file = fopen((GPIO_BASE_DIR "unexport"), "w");
     if (file == NULL)
-      perror("Couldn't open GPIO unexport file!");
+      printf("Couldn't open GPIO unexport file!");
     fprintf(file, "%s", GPIO[i]);
     fclose(file);
   }  
@@ -102,7 +102,7 @@ static void read_values(int *read, int *last, int *debounce)
     
     file = fopen(buffer, "r");
     if (file == NULL)
-      perror("Couldn't export a GPIO pin!");
+      printf("Couldn't read GPIO %s!", GPIO[i]);
 
     fgets(result, BUFFER_SIZE, file);
     fclose(file);
@@ -110,16 +110,17 @@ static void read_values(int *read, int *last, int *debounce)
     if (result[0] == '1') {
       read[i] = 1;
 
-      if (debounce[i])
-	continue;
-
-      if (last[i])
+      if (last[i] == 1)
 	debounce[i] = 1;
       else
 	debounce[i] = 0;
+
+      if (debounce[i] == 1)
+	continue;
       
       printf("KEY %c PRESSED\n", KEYS[i]);
     } else {
+      read[i] = 0;
       debounce[i] = 0;
     }
   }
