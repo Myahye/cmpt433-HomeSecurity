@@ -4,12 +4,22 @@
 #include <unistd.h>
 
 #include "door_sensor.h"
+#include "keypad.h"
 
 void testDoorSensor();
+void testKeypad();
 
 int main()
 {
-  testDoorSensor();
+  //testDoorSensor();
+  testKeypad();
+}
+
+void testKeypad()
+{
+  Keypad_init();
+  sleep(5);
+  Keypad_unInit();
 }
 
 void testDoorSensor()
