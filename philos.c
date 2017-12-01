@@ -18,7 +18,7 @@ int main()
 void testKeypad()
 {
   Keypad_init();
-  sleep(5);
+  sleep(10);
   Keypad_unInit();
 }
 

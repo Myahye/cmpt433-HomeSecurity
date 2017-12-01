@@ -15,7 +15,7 @@
 static int run = 0;
 static pthread_t keypad_id;
 static const char *GPIO[] = {
-  "36", "32", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70"
+  "88", "89", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70"
 };
 
 static void *keypad_reader();
