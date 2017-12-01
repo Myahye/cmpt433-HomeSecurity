@@ -19,6 +19,7 @@ static const char *GPIO[] = {
 };
 
 static void *keypad_reader();
+static void read_values();
 
 void Keypad_init()
 {
@@ -76,8 +77,31 @@ static void *keypad_reader()
 
   while (run) {
     nanosleep(&delay, NULL);
-    printf("some reading here...\n");
+    read_values();
   }
 
   return NULL;
+}
+
+static void read_values()
+{
+  FILE *file;
+  char buffer[BUFFER_SIZE] = "";
+  char result[32] = "";
+
+  for (int i = 0; i < NUM_GPIO; ++i) {
+    strcpy(buffer, GPIO_BASE_DIR "gpio");
+    strcat(buffer, GPIO[i]);
+    strcat(buffer, "/value");
+    
+    file = fopen(buffer, "r");
+    if (file == NULL)
+      perror("Couldn't export a GPIO pin!");
+
+    fgets(result, BUFFER_SIZE, file);
+    fclose(file);
+
+    if (result[0] == '1')
+      printf("KEY %d PRESSED\n", i);
+  }
 }
