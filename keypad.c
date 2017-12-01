@@ -7,19 +7,18 @@
 
 #include "keypad.h"
 
-#define _10MS_IN_NS 10000000L
+#define NS_DELAY 50000000L // 50ms in ns
 #define BUFFER_SIZE 512
 #define NUM_GPIO 12
 #define GPIO_BASE_DIR "/sys/class/gpio/"
 
 static int run = 0;
 static pthread_t keypad_id;
-static const char *GPIO[] = {
-  "88", "89", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70"
-};
+static const char *GPIO[] = { "88", "89", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70" };
+static const char KEYS[] = { '*', '7', '4', '1', '0', '8', '5', '2', '#', '9', '6', '3' };
 
 static void *keypad_reader();
-static void read_values();
+static void read_values(int *read, int *last, int *debounce);
 
 void Keypad_init()
 {
@@ -73,22 +72,29 @@ static void *keypad_reader()
 {
   struct timespec delay;
   delay.tv_sec = 0;
-  delay.tv_nsec = _10MS_IN_NS;
+  delay.tv_nsec = NS_DELAY;
+  
+  int read[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
+  int last[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
+  int debounce[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
 
   while (run) {
     nanosleep(&delay, NULL);
-    read_values();
+    read_values(read, last, debounce);
+
+    for (int i = 0; i < NUM_GPIO; ++i)
+      last[i] = read[i];
   }
 
   return NULL;
 }
 
-static void read_values()
+static void read_values(int *read, int *last, int *debounce)
 {
   FILE *file;
   char buffer[BUFFER_SIZE] = "";
   char result[32] = "";
-
+  
   for (int i = 0; i < NUM_GPIO; ++i) {
     strcpy(buffer, GPIO_BASE_DIR "gpio");
     strcat(buffer, GPIO[i]);
@@ -101,7 +107,20 @@ static void read_values()
     fgets(result, BUFFER_SIZE, file);
     fclose(file);
 
-    if (result[0] == '1')
-      printf("KEY %d PRESSED\n", i);
+    if (result[0] == '1') {
+      read[i] = 1;
+
+      if (debounce[i])
+	continue;
+
+      if (last[i])
+	debounce[i] = 1;
+      else
+	debounce[i] = 0;
+      
+      printf("KEY %c PRESSED\n", KEYS[i]);
+    } else {
+      debounce[i] = 0;
+    }
   }
 }
