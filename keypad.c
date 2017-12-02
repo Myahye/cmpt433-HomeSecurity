@@ -8,6 +8,7 @@
 #include "keypad.h"
 
 #define NS_DELAY 50000000L // 50ms in ns
+#define _2S_IN_NS 2000000000L
 #define BUFFER_SIZE 512
 #define NUM_GPIO 12
 #define GPIO_BASE_DIR "/sys/class/gpio/"
@@ -17,7 +18,7 @@ static pthread_t keypad_id;
 static const char *GPIO[] = { "88", "89", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70" };
 static const char KEYS[] = { '*', '7', '4', '1', '0', '8', '5', '2', '#', '9', '6', '3' };
 static code_t code = { 0, NULL };
-static const int _3s = (int) (3000000000L / NS_DELAY);
+static const int _2s = (int) ((_2S_IN_NS) / NS_DELAY);
 
 static void *keypad_reader();
 static char read_values(int *read, int *last, int *debounce);
@@ -120,6 +121,8 @@ static void *keypad_reader()
   int debounce[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
   int no_input = 0;
   int counter = 0;
+  int errors = 0;
+  const int MAX_ERRORS = 3;
   char c = 0;
   char *input = NULL;
 
@@ -130,22 +133,43 @@ static void *keypad_reader()
     if (!c) {
       ++no_input;
 
-      if (no_input == _3s) {
-	// reset input buffer
-	counter = 0;
+      if (no_input == _2s) {
+	// no input for 3 seconds, reset input buffer
+	printf("resetting input buffer\n");
+
+	if (counter) {
+	  counter = 0;
+	  ++errors;
+	}
+
 	input = (char *) realloc(input, sizeof(char) * (counter + 1));
 	input[counter] = '\0';
+	no_input = 0;
       }
     } else {
       // add c to input buffer
       ++counter;
+      no_input = 0;
       input = (char *) realloc(input, sizeof(char) * (counter + 1));
       input[counter - 1] = c;
       input[counter] = '\0';
+      
+      if (counter == code.size) {
+	// check if the code matches
+	if (strcmp(input, code.code) == 0) {
+	  printf("CORRECT CODE!\n");
+	  errors = 0;
+	} else {
+	  printf("INCORRECT CODE!\n");
+	  ++errors;
 
-      // check if the code matches
-      if (strcmp(input, code.code) == 0) {
-	printf("CORRECT CODE!\n");
+	  if (errors >= MAX_ERRORS) {
+	    // trigger the alarm
+	    printf("ALARM!!\n");
+	  }
+	}
+
+	counter = 0;
       }
     }
 
