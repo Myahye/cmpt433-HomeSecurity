@@ -16,9 +16,14 @@ static int run = 0;
 static pthread_t keypad_id;
 static const char *GPIO[] = { "88", "89", "86", "87", "10", "9", "8", "78", "76", "74", "72", "70" };
 static const char KEYS[] = { '*', '7', '4', '1', '0', '8', '5', '2', '#', '9', '6', '3' };
+static code_t code = { 0, NULL };
+static const int _3s = (int) (3000000000L / NS_DELAY);
 
 static void *keypad_reader();
-static void read_values(int *read, int *last, int *debounce);
+static char read_values(int *read, int *last, int *debounce);
+static void copy_code(code_t *dest, const code_t *src);
+
+// ========== Interface ==========
 
 void Keypad_init()
 {
@@ -65,7 +70,43 @@ void Keypad_unInit()
       printf("Couldn't open GPIO unexport file!");
     fprintf(file, "%s", GPIO[i]);
     fclose(file);
-  }  
+  }
+
+  if (code.code != NULL)
+    free(code.code);
+}
+
+void Keypad_setCode(int size, char *new_code)
+{
+  code_t new;
+  new.size = size;
+  new.code = new_code;
+
+  copy_code(&code, &new);
+}
+
+code_t Keypad_getCode()
+{
+  return code;
+}
+
+// ========== Private functions ==========
+
+static void copy_code(code_t *dest, const code_t *src)
+{
+  if (src == NULL)
+    return;
+
+  dest->size = src->size;
+  size_t new_size = sizeof(char) * (dest->size + 1);
+
+  if (dest->code == NULL)
+    dest->code = (char *) malloc(new_size);
+  else
+    dest->code = (char *) realloc(dest->code, new_size);
+
+  memset(dest->code, 0, new_size);
+  strcpy(dest->code, src->code);
 }
 
 static void *keypad_reader()
@@ -77,10 +118,36 @@ static void *keypad_reader()
   int read[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
   int last[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
   int debounce[NUM_GPIO] = {0,0,0,0,0,0,0,0,0,0,0,0};
+  int no_input = 0;
+  int counter = 0;
+  char c = 0;
+  char *input = NULL;
 
   while (run) {
     nanosleep(&delay, NULL);
-    read_values(read, last, debounce);
+    c = read_values(read, last, debounce);
+
+    if (!c) {
+      ++no_input;
+
+      if (no_input == _3s) {
+	// reset input buffer
+	counter = 0;
+	input = (char *) realloc(input, sizeof(char) * (counter + 1));
+	input[counter] = '\0';
+      }
+    } else {
+      // add c to input buffer
+      ++counter;
+      input = (char *) realloc(input, sizeof(char) * (counter + 1));
+      input[counter - 1] = c;
+      input[counter] = '\0';
+
+      // check if the code matches
+      if (strcmp(input, code.code) == 0) {
+	printf("CORRECT CODE!\n");
+      }
+    }
 
     for (int i = 0; i < NUM_GPIO; ++i)
       last[i] = read[i];
@@ -89,7 +156,7 @@ static void *keypad_reader()
   return NULL;
 }
 
-static void read_values(int *read, int *last, int *debounce)
+static char read_values(int *read, int *last, int *debounce)
 {
   FILE *file;
   char buffer[BUFFER_SIZE] = "";
@@ -118,10 +185,21 @@ static void read_values(int *read, int *last, int *debounce)
       if (debounce[i] == 1)
 	continue;
       
-      printf("KEY %c PRESSED\n", KEYS[i]);
+      //printf("KEY %c PRESSED\n", KEYS[i]);
+
+      // accepts only the first button pressed
+      for (int j = i + 1; j < NUM_GPIO; ++j) {
+	read[j] = 0;
+	debounce[j] = 0;
+      }
+      
+      return KEYS[i];
+      
     } else {
       read[i] = 0;
       debounce[i] = 0;
     }
   }
+
+  return 0;
 }

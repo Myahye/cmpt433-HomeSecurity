@@ -18,7 +18,15 @@ int main()
 void testKeypad()
 {
   Keypad_init();
-  sleep(10);
+  
+  char new_code[6] = "123456";
+  code_t code;
+  Keypad_setCode(6, new_code);
+  code = Keypad_getCode();
+  printf("NEW CODE = %s\n", code.code);
+
+  sleep(6);
+  
   Keypad_unInit();
 }
 
